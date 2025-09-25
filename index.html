@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Email Ranking System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container grid-layout">
+    <!-- Left: Single Rank -->
+    <div class="card">
+      <h1>Email Ranker</h1>
+      <p class="subtitle">Enter first name, last name and company domain to generate ranked email variations (real-time verification).</p>
+
+      <form id="rankingForm" autocomplete="off">
+        <div class="input-group">
+          <label for="firstName">First Name</label>
+          <input type="text" id="firstName" name="first_name" required />
+        </div>
+
+        <div class="input-group">
+          <label for="lastName">Last Name</label>
+          <input type="text" id="lastName" name="last_name" required />
+        </div>
+
+        <div class="input-group">
+          <label for="domain">Domain (e.g., example.com)</label>
+          <input type="text" id="domain" name="domain" required />
+        </div>
+
+        <button type="submit" id="rankBtn" class="primary-btn">🔍 Rank Emails</button>
+      </form>
+
+      <div id="loader" class="loader" style="display:none;"></div>
+      <div id="messageBox" class="message-box" style="display:none;"></div>
+
+      <div id="resultsSection" class="results-section" style="display:none;">
+        <div id="bestEmailSection" class="best-email-section"></div>
+        <div id="allVariationsSection" class="all-variations-section"></div>
+      </div>
+    </div>
+
+    <!-- Right: Bulk CSV -->
+    <div class="card">
+      <h2>📂 Bulk CSV Upload</h2>
+      <p class="subtitle">CSV must contain columns: <code>first_name,last_name,domain</code>. Upload and download processed CSV.</p>
+
+      <form id="bulkForm" enctype="multipart/form-data">
+        <input type="file" id="csvFile" accept=".csv" required />
+        <button type="submit" id="bulkBtn" class="secondary-btn">⬆️ Upload & Process</button>
+      </form>
+
+      <p id="bulkStatus" style="margin-top:12px; font-weight:600;"></p>
+    </div>
+  </div>
+
+  <!-- Inline JS (uses your demo.py endpoints) -->
+  <script>
+  (function () {
+    const rankingForm = document.getElementById('rankingForm');
+    const rankBtn = document.getElementById('rankBtn');
+    const loader = document.getElementById('loader');
+    const messageBox = document.getElementById('messageBox');
+    const resultsSection = document.getElementById('resultsSection');
+    const bestEmailSection = document.getElementById('bestEmailSection');
+    const allVariationsSection = document.getElementById('allVariationsSection');
+
+    const bulkForm = document.getElementById('bulkForm');
+    const csvFile = document.getElementById('csvFile');
+    const bulkBtn = document.getElementById('bulkBtn');
+    const bulkStatus = document.getElementById('bulkStatus');
+
+    // Helper to show messages
+    function showMessage(text, type='info') {
+      messageBox.style.display = 'block';
+      messageBox.textContent = text;
+      messageBox.className = `message-box ${type}`;
+    }
+
+    // Reset results area
+    function clearResults() {
+      bestEmailSection.innerHTML = '';
+      allVariationsSection.innerHTML = '';
+      resultsSection.style.display = 'none';
+      messageBox.style.display = 'none';
+    }
+
+    // Render best email box
+    function renderBestEmail(best) {
+      if (!best || !best.email) return;
+      const deliverability = (best.deliverability || 'unknown').replace(/_/g,' ');
+      const aiPercent = (best.ai_confidence != null) ? (best.ai_confidence * 100).toFixed(1) + '%' : 'N/A';
+      // FIXED: Get api_score directly from best object, not from nested api_result
+      const apiScore = (best.api_score != null && typeof best.api_score === 'number') ? best.api_score.toFixed(2) : 'N/A';
+      const formatValid = best.format_valid ? 'Yes' : 'No';
+      const mxFound = best.mx_found ? 'Found' : 'Not Found';
+
+      bestEmailSection.innerHTML = `
+        <h3>Best Email</h3>
+        <div class="best-email-box">
+          <div class="best-email-address">${best.email}</div>
+          <div class="${best.exists ? 'exists-badge' : 'guess-badge'}" style="margin-bottom:10px;">${best.exists ? 'EXISTS' : 'BEST GUESS'}</div>
+
+          <div class="probability-section">
+            <div class="probability-label">Probability: ${best.probability}%</div>
+            <div class="probability-bar"><div class="probability-fill" style="width:${best.probability}%"></div></div>
+          </div>
+
+          <div class="best-email-details">
+            <div>Deliverability: ${deliverability}</div>
+            <div>API Score: ${apiScore}</div>
+            <div>AI Confidence: ${aiPercent}</div>
+            <div>Format Valid: ${formatValid}</div>
+            <div>MX Record: ${mxFound}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render table of all variations
+    function renderTable(rows) {
+      if (!Array.isArray(rows)) return;
+      let html = `
+        <h3>All Variations Ranked (${rows.length})</h3>
+        <div class="table-container">
+          <table class="ranking-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Email</th>
+                <th>Probability</th>
+                <th>AI Confidence</th>
+                <th>API Score</th>
+                <th>Exists</th>
+                <th>Deliverability</th>
+                <th>Format</th>
+                <th>MX</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      rows.forEach((item, idx) => {
+        const rank = idx + 1;
+        const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+        const aiConf = (item.ai_confidence != null) ? (item.ai_confidence * 100).toFixed(1) + '%' : 'N/A';
+        
+        // FIXED: Get api_score directly from item, not from nested api_result
+        const apiScore = (item.api_score != null && typeof item.api_score === 'number') ? item.api_score.toFixed(2) : 'N/A';
+        
+        const exists = item.exists ? 'Yes' : 'No';
+        const deliverability = (item.deliverability || 'unknown').replace(/_/g,' ');
+        const formatValid = item.format_valid ? 'Yes' : 'No';
+        const mxFound = item.mx_found ? 'Yes' : 'No';
+
+        html += `
+          <tr>
+            <td><span class="rank-badge ${rankClass}">#${rank}</span></td>
+            <td>${item.email}</td>
+            <td>${item.probability}%</td>
+            <td>${aiConf}</td>
+            <td>${apiScore}</td>
+            <td>${exists}</td>
+            <td><span class="deliverability-badge ${item.deliverability || 'unknown'}">${deliverability}</span></td>
+            <td>${formatValid}</td>
+            <td>${mxFound}</td>
+          </tr>
+        `;
+      });
+
+      html += `</tbody></table></div>`;
+      allVariationsSection.innerHTML = html;
+    }
+
+    // ---------- Single ranking handler ----------
+    rankingForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      clearResults();
+      rankBtn.disabled = true;
+      loader.style.display = 'block';
+      showMessage('Processing — please wait...', 'info');
+
+      const payload = {
+        first_name: document.getElementById('firstName').value.trim(),
+        last_name: document.getElementById('lastName').value.trim(),
+        domain: document.getElementById('domain').value.trim()
+      };
+
+      try {
+        const resp = await fetch('/rank_emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(txt || ('HTTP ' + resp.status));
+        }
+
+        const data = await resp.json();
+        console.log('Received data:', data); // Debug log to see the actual data structure
+        
+        loader.style.display = 'none';
+        rankBtn.disabled = false;
+
+        if (data.status === 'success') {
+          showMessage('✅ Ranked successfully', 'info');
+          renderBestEmail(data.best_email || {});
+          renderTable(data.ranked_results || []);
+          resultsSection.style.display = 'flex';
+        } else {
+          showMessage('Error: ' + (data.message || 'Unknown'), 'error');
+        }
+      } catch (err) {
+        loader.style.display = 'none';
+        rankBtn.disabled = false;
+        showMessage('Request failed: ' + (err.message || err), 'error');
+        console.error(err);
+      }
+    });
+
+    // ---------- Bulk CSV handler ----------
+    bulkForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      if (!csvFile.files.length) {
+        bulkStatus.innerText = 'Please choose a CSV file.';
+        return;
+      }
+      bulkBtn.disabled = true;
+      bulkStatus.innerText = '⏳ Uploading and processing...';
+
+      try {
+        const file = csvFile.files[0];
+        // Send raw file bytes (server expects raw bytes)
+        const resp = await fetch('/bulk_rank', {
+          method: 'POST',
+          body: file
+        });
+
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(txt || ('HTTP ' + resp.status));
+        }
+
+        const blob = await resp.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'bulk_output.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+
+        bulkStatus.innerText = '✅ File processed and downloaded!';
+      } catch (err) {
+        console.error(err);
+        bulkStatus.innerText = '❌ Bulk processing failed: ' + (err.message || err);
+      } finally {
+        bulkBtn.disabled = false;
+      }
+    });
+
+  })();
+  </script>
+</body>
+</html>
