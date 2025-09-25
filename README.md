@@ -26,9 +26,9 @@ The system operates on a powerful, two-step process:
 ├── index.html          # Frontend HTML file for the web interface
 ├── style.css           # CSS for styling the web interface
 ├── README.md           # This file
-└── requirements.txt    # Project dependencies
+
 
 # Screenshots
 <img width="930" height="783" alt="Screenshot 2025-09-25 204807" src="https://github.com/user-attachments/assets/d1490b9b-8dfa-40c8-8f0f-a01b017edc61" />
-<img width="731" height="220" alt="Screenshot 2025-09-25 203606" src="https://github.com/user-attachments/assets/4315c93c-41de-41a8-b87d-749949f9de80" />
 <img width="918" height="789" alt="Screenshot 2025-09-25 204843" src="https://github.com/user-attachments/assets/ec2c8db2-47a2-4370-b5a2-50111491051b" />
+<img width="731" height="220" alt="Screenshot 2025-09-25 203606" src="https://github.com/user-attachments/assets/4315c93c-41de-41a8-b87d-749949f9de80" />
