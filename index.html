@@ -190,7 +190,8 @@
       };
 
       try {
-        const resp = await fetch('/rank_emails', {
+        const backendUrl = 'https://email-verification-and-ranking-system-production.up.railway.app';
+        const resp = await fetch(`${backendUrl}/rank_emails`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -236,7 +237,8 @@
       try {
         const file = csvFile.files[0];
         // Send raw file bytes (server expects raw bytes)
-        const resp = await fetch('/bulk_rank', {
+        const backendUrl = 'https://email-verification-and-ranking-system-production.up.railway.app';
+        const resp = await fetch(`${backendUrl}/bulk_rank`, {
           method: 'POST',
           body: file
         });
@@ -268,4 +270,5 @@
   })();
   </script>
 </body>
+
 </html>
