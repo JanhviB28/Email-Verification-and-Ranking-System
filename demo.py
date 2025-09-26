@@ -430,7 +430,7 @@ class EmailRankingHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
-
+        
     def do_OPTIONS(self):
         self._set_response()
 
@@ -498,4 +498,5 @@ def run_server():
 
 
 if __name__ == "__main__":
+
     run_server()
