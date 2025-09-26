@@ -3,12 +3,12 @@ import re
 import json
 import time
 import pandas as pd
+import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict
-
 
 class EmailRankingSystem:
     def __init__(self):
@@ -480,12 +480,14 @@ class EmailRankingHandler(BaseHTTPRequestHandler):
 
 
 def run_server():
-    server_address = ("localhost", 8000)
+    # Use 0.0.0.0 to listen on all network interfaces and read the assigned port from the environment
+    port = int(os.environ.get("PORT", 8000))
+    server_address = ("0.0.0.0", port)
     httpd = HTTPServer(server_address, EmailRankingHandler)
 
     print("Email Ranking System (Web + Bulk Mode)")
     print("=" * 50)
-    print("Server: http://localhost:8000")
+    print(f"Server: http://localhost:{port}")
     print("Scoring: 70% API + 30% AI confidence")
     print("Supports bulk CSV upload -> download enriched CSV")
     print("=" * 50)
@@ -496,7 +498,6 @@ def run_server():
         print("\nServer stopped.")
         httpd.server_close()
 
-
 if __name__ == "__main__":
-
     run_server()
+
